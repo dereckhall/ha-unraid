@@ -1,6 +1,6 @@
 # GitHub Copilot Instructions — ha-unraid
 
-> Read **[`AGENTS.md`](/AGENTS.md)** for comprehensive project documentation.
+> Read **[`AGENTS.md`](../AGENTS.md)** for comprehensive project documentation.
 > Path-specific `*.instructions.md` files in `.github/instructions/` auto-load per file type.
 > Reusable task prompts are in `.github/prompts/`.
 
@@ -10,7 +10,7 @@
 - **Class prefix**: `Unraid`
 - **Code path**: `custom_components/unraid/`
 - **Test path**: `tests/`
-- **Python**: 3.13+ | **HA**: 2025.6.3+ | **Dep**: `unraid-api>=1.5.0`
+- **Python**: 3.13+ | **HA**: 2025.12.0+ | **Dep**: `unraid-api>=1.6.0`
 - **Platforms**: `sensor`, `binary_sensor`, `switch`, `button`
 - **iot_class**: `local_polling`
 
@@ -62,6 +62,7 @@ These files auto-load in Copilot based on `applyTo` patterns:
 | `**/*.py` | `python.instructions.md` | Python conventions |
 | `**/entity.py`, `**/entities/*.py` | `entities.instructions.md` | Entity hierarchy, state, actions |
 | `**/coordinator.py`, `**/coordinators/*.py` | `coordinator.instructions.md` | Triple coordinator, error handling |
+| `__init__.py`, `config_flow.py`, `coordinator.py` | `api.instructions.md` | `UnraidClient` usage and API-layer boundaries |
 | `config_flow.py` | `config_flow.instructions.md` | SSL, versions, options flow |
 | `diagnostics.py` | `diagnostics.instructions.md` | Diagnostic data, security |
 | `repairs.py` | `repairs.instructions.md` | Repair flows |
@@ -70,8 +71,10 @@ These files auto-load in Copilot based on `applyTo` patterns:
 | `icons.json` | `json.instructions.md` | Icon definitions |
 | `manifest.json` | `manifest.instructions.md` | Integration metadata |
 | `quality_scale.yaml` | `yaml.instructions.md` | Quality self-assessment |
+| `**/configuration.yaml` | `configuration_yaml.instructions.md` | Local HA dev config patterns |
 | `**/*.md` | `markdown.instructions.md` | Documentation standards |
 | `services.yaml` | `service_actions.instructions.md` | Service actions |
+| `services.yaml` | `services_yaml.instructions.md` | Service definition schema |
 
 ## Reusable Task Prompts
 

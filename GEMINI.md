@@ -5,7 +5,7 @@
 
 ## Quick Reference
 
-- **Domain**: `unraid` | **Prefix**: `Unraid` | **Python**: 3.13+
+- **Domain**: `unraid` | **Prefix**: `Unraid` | **Python**: 3.13+ | **HA**: 2025.12.0+ | **Dep**: `unraid-api>=1.6.0`
 - **Code**: `custom_components/unraid/` | **Tests**: `tests/`
 - **Lint**: `./scripts/lint` | **Test**: `./scripts/test` | **Validate**: `./scripts/validate`
 
@@ -18,6 +18,7 @@ When editing specific file types, consult the relevant instruction file in `.git
 | `**/*.py` | [`python.instructions.md`](.github/instructions/python.instructions.md) |
 | Entity platform files | [`entities.instructions.md`](.github/instructions/entities.instructions.md) |
 | `coordinator.py` | [`coordinator.instructions.md`](.github/instructions/coordinator.instructions.md) |
+| `__init__.py` / `config_flow.py` / `coordinator.py` | [`api.instructions.md`](.github/instructions/api.instructions.md) |
 | `config_flow.py` | [`config_flow.instructions.md`](.github/instructions/config_flow.instructions.md) |
 | `diagnostics.py` | [`diagnostics.instructions.md`](.github/instructions/diagnostics.instructions.md) |
 | `repairs.py` | [`repairs.instructions.md`](.github/instructions/repairs.instructions.md) |
@@ -26,8 +27,10 @@ When editing specific file types, consult the relevant instruction file in `.git
 | `icons.json` | [`json.instructions.md`](.github/instructions/json.instructions.md) |
 | `manifest.json` | [`manifest.instructions.md`](.github/instructions/manifest.instructions.md) |
 | `quality_scale.yaml` | [`yaml.instructions.md`](.github/instructions/yaml.instructions.md) |
+| `**/configuration.yaml` | [`configuration_yaml.instructions.md`](.github/instructions/configuration_yaml.instructions.md) |
 | `**/*.md` | [`markdown.instructions.md`](.github/instructions/markdown.instructions.md) |
 | `services.yaml` / `services.py` | [`service_actions.instructions.md`](.github/instructions/service_actions.instructions.md) |
+| `services.yaml` | [`services_yaml.instructions.md`](.github/instructions/services_yaml.instructions.md) |
 
 ## Task Prompts
 

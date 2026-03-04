@@ -15,10 +15,13 @@ Refer to [`AGENTS.md`](/AGENTS.md) for full project documentation.
   "codeowners": ["@ruaan-deysel"],
   "config_flow": true,
   "dependencies": [],
+  "homekit": {},
   "documentation": "https://github.com/ruaan-deysel/ha-unraid",
   "iot_class": "local_polling",
   "issue_tracker": "https://github.com/ruaan-deysel/ha-unraid/issues",
-  "requirements": ["unraid-api>=1.5.0"],
+  "requirements": ["unraid-api>=1.6.0"],
+  "ssdp": [],
+  "zeroconf": [],
   "version": "YYYY.M.P"
 }
 ```

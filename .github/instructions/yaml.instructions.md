@@ -22,7 +22,9 @@ rules:
 ### Tiers
 
 - **Bronze**: Minimum requirements for all integrations
+  Includes `entity-unavailable` and `integration-owner`.
 - **Silver**: Improved reliability and robustness
+  Includes `docs-actions` and `entity-event-setup`.
 - **Gold**: Best user experience
 - **Platinum**: Highest standards
 
@@ -31,5 +33,5 @@ rules:
 - Update status when implementing new quality scale requirements
 - Always include a `comment` explaining `exempt` or `todo` status
 - Current target: **Platinum** level
-- Key outstanding item: `test-coverage` (63% → 95%)
+- Key outstanding item: `test-coverage` must be **>=95%**
 - Review after adding new features to ensure all quality scale rules still apply

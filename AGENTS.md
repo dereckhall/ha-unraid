@@ -13,8 +13,8 @@
 | **Code path** | `custom_components/unraid/` |
 | **Test path** | `tests/` |
 | **Python** | 3.13+ |
-| **HA minimum** | 2025.6.3 |
-| **Key dependency** | `unraid-api>=1.5.0` |
+| **HA minimum** | 2025.12.0 |
+| **Key dependency** | `unraid-api>=1.6.0` |
 | **iot_class** | `local_polling` |
 | **Config flow** | Yes (UI only, no YAML) |
 | **Platforms** | `sensor`, `binary_sensor`, `switch`, `button` |
@@ -155,7 +155,7 @@ Key patterns:
 
 - Steps: `user` → `reauth_confirm` → `reconfigure`
 - SSL auto-detection: Try HTTPS first, fall back to HTTP on `UnraidSSLError`
-- Version checking: `MIN_API_VERSION = "4.21.0"`, `MIN_UNRAID_VERSION = "7.2.0"`
+- Version checking: call `api_client.check_compatibility()` (requires Unraid `7.2.0+` / GraphQL API `v4.21.0+`)
 - Options flow: `OptionsFlowWithReload` for UPS capacity/power settings
 - Unique ID: server UUID from `api_client.get_server_info()`
 
@@ -283,6 +283,6 @@ Check diagnostics via: Settings > Devices & Services > Unraid > (...) > Download
 The integration targets **Platinum** level on the [HA Integration Quality Scale](https://developers.home-assistant.io/docs/core/integration-quality-scale/). Current status:
 
 - **Bronze**: All rules done/exempt
-- **Silver**: All done except test coverage (63% → 95% target)
+- **Silver**: All rules done except `test-coverage` (must reach **>=95%**)
 - **Gold**: All done/exempt
 - **Platinum**: All done (async dependency, inject websession, strict typing)

@@ -171,7 +171,7 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         """
         Test connection to Unraid server and validate version.
 
-        The unraid-api library (>=1.5.0) handles SSL detection automatically:
+        The unraid-api library (>=1.6.0) handles SSL detection automatically:
         - Probes HTTP on http_port to discover SSL/TLS mode (No/Yes/Strict)
         - Follows redirects to HTTPS or myunraid.net endpoints
         - Raises UnraidConnectionError for unreachable non-default ports

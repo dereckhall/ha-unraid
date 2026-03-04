@@ -50,10 +50,11 @@ Read these files:
 - [ ] All platforms have test files
 - [ ] Config flow paths tested (success, errors, reauth)
 - [ ] Coordinator error scenarios tested
-- [ ] Coverage meets target (95%)
+- [ ] `test-coverage` rule meets target (**>=95%**)
 
 ### Quality Scale
-- [ ] Bronze: All rules done/exempt
-- [ ] Silver: All done (check test-coverage)
+- [ ] Bronze: Includes `entity-unavailable` and `integration-owner` as done/exempt
+- [ ] Silver: Includes `docs-actions` and `entity-event-setup` as done/exempt
+- [ ] Silver: `test-coverage` is the only allowed `todo` if below 95%
 - [ ] Gold: All done/exempt
 - [ ] Platinum: async-dependency, inject-websession, strict-typing

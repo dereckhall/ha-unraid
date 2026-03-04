@@ -14,28 +14,28 @@ Refer to [`AGENTS.md`](/AGENTS.md) for full project documentation.
 
 ## SSL Auto-Detection
 
-The config flow tries HTTPS first, falls back to HTTP on `UnraidSSLError`:
+The config flow delegates protocol probing to `unraid-api` and retries with
+`verify_ssl=False` when certificate verification fails:
 
 ```python
 try:
-    await client.test_connection()  # HTTPS
-except UnraidSSLError:
-    # Retry without SSL
-    use_ssl = False
-    client = UnraidClient(host=host, ..., verify_ssl=False)
-    await client.test_connection()
+    await api_client.test_connection()
+except CannotConnectError as err:
+    if "ssl" in str(err).lower() or "certificate" in str(err).lower():
+        api_client = UnraidClient(..., verify_ssl=False, session=session)
+        await api_client.test_connection()
 ```
 
 ## Version Checking
 
-Enforce minimum versions before accepting configuration:
+Enforce compatibility before accepting configuration:
 
 ```python
-MIN_API_VERSION = "4.21.0"
-MIN_UNRAID_VERSION = "7.2.0"
+await api_client.check_compatibility()
 ```
 
-Use `AwesomeVersion` for version comparison.
+`unraid-api` raises `UnraidVersionError` when the server is below required
+Unraid/GraphQL API versions.
 
 ## Options Flow
 
@@ -48,40 +48,31 @@ Use `AwesomeVersion` for version comparison.
 
 Return string error IDs (not exceptions) to the UI:
 
+- `required` — Missing host/API key
+- `invalid_hostname` — Host exceeds max length
 - `cannot_connect` — Connection failed
 - `invalid_auth` — Bad API key
-- `timeout` — Connection timed out
 - `unknown` — Unexpected error
-- `already_configured` — Duplicate server
 - `unsupported_version` — Unraid/API too old
 
 ## Abort Reasons
 
+- `already_configured` — Duplicate server detected by unique ID
 - `reauth_successful` — Returned by `async_step_reauth_confirm` on success via `self.async_update_reload_and_abort(...)`
+- `no_options_available` — Returned by options flow when UPS options are not applicable
 
 ## Unique Config Entry
 
-Set unique ID from server UUID. The helper used after `async_set_unique_id` depends on which flow step is executing:
-
-**`async_step_user`** (initial setup) — abort if already configured:
+Set unique ID from server UUID (or fallback host) during `async_step_user`:
 
 ```python
-info = await client.get_server_info()
-await self.async_set_unique_id(info.uuid)
+unique_id = self._server_uuid or user_input[CONF_HOST]
+await self.async_set_unique_id(unique_id)
 self._abort_if_unique_id_configured()
 ```
 
-**`async_step_reauth_confirm` / `async_step_reconfigure`** — abort if UUID has changed (different server):
-
-```python
-info = await client.get_server_info()
-await self.async_set_unique_id(info.uuid)
-self._abort_if_unique_id_mismatch()
-# On reauth success:
-return self.async_update_reload_and_abort(
-    self._get_reauth_entry(), data_updates={...}
-)
-```
+`async_step_reauth_confirm` and `async_step_reconfigure` update existing entries
+via `_get_reauth_entry()` / `_get_reconfigure_entry()`.
 
 ## Validation
 
@@ -92,13 +83,8 @@ return self.async_update_reload_and_abort(
 
 ## Repair Issues
 
-Create repair issues for persistent auth failures:
+Reauth success should clear the auth repair issue created by runtime logic:
 
 ```python
-ir.async_create_issue(
-    hass, DOMAIN, REPAIR_AUTH_FAILED,
-    is_fixable=True, is_persistent=True,
-    severity=ir.IssueSeverity.ERROR,
-    translation_key="auth_failed",
-)
+ir.async_delete_issue(self.hass, DOMAIN, REPAIR_AUTH_FAILED)
 ```
