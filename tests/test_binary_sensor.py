@@ -7,6 +7,13 @@ from unittest.mock import MagicMock
 
 import pytest
 from homeassistant.components.binary_sensor import BinarySensorDeviceClass
+from unraid_api.const import (
+    DISK_STATUS_DISABLED,
+    DISK_STATUS_NEW,
+    DISK_STATUS_NP_DSBL,
+    DISK_STATUS_NP_MISSING,
+    DISK_STATUS_WRONG,
+)
 from unraid_api.models import (
     ArrayDisk,
     Cloud,
@@ -1647,12 +1654,12 @@ def test_mover_active_no_vars(mock_infra_coordinator):
 # =============================================================================
 
 
-def test_disks_disabled_init(mock_infra_coordinator):
+def test_disks_disabled_init(mock_storage_coordinator):
     """Test DisksDisabledBinarySensor initialization."""
-    mock_infra_coordinator.data = make_infra_data(vars_data=Vars(md_num_disabled=0))
+    mock_storage_coordinator.data = make_storage_data()
 
     sensor = DisksDisabledBinarySensor(
-        coordinator=mock_infra_coordinator,
+        coordinator=mock_storage_coordinator,
         server_uuid="test-uuid",
         server_name="tower",
     )
@@ -1662,25 +1669,33 @@ def test_disks_disabled_init(mock_infra_coordinator):
     assert sensor._attr_device_class == BinarySensorDeviceClass.PROBLEM
 
 
-def test_disks_disabled_is_on_when_count_gt_zero(mock_infra_coordinator):
-    """Test is_on returns True when disabled disk count > 0."""
-    mock_infra_coordinator.data = make_infra_data(vars_data=Vars(md_num_disabled=2))
+def test_disks_disabled_is_on_when_count_gt_zero(mock_storage_coordinator):
+    """Test is_on returns True when one or more disks have disabled statuses."""
+    mock_storage_coordinator.data = make_storage_data(
+        disks=[
+            make_disk(status=DISK_STATUS_DISABLED),
+            make_disk(id="disk:2", idx=2, name="Disk 2", status=DISK_STATUS_NP_DSBL),
+        ]
+    )
 
     sensor = DisksDisabledBinarySensor(
-        coordinator=mock_infra_coordinator,
+        coordinator=mock_storage_coordinator,
         server_uuid="test-uuid",
         server_name="tower",
     )
 
     assert sensor.is_on is True
+    assert sensor.extra_state_attributes == {"count": 2}
 
 
-def test_disks_disabled_is_off_when_count_zero(mock_infra_coordinator):
-    """Test is_on returns False when disabled disk count is 0."""
-    mock_infra_coordinator.data = make_infra_data(vars_data=Vars(md_num_disabled=0))
+def test_disks_disabled_is_off_when_count_zero(mock_storage_coordinator):
+    """Test is_on returns False when no disks have disabled statuses."""
+    mock_storage_coordinator.data = make_storage_data(
+        disks=[make_disk(status="DISK_OK")]
+    )
 
     sensor = DisksDisabledBinarySensor(
-        coordinator=mock_infra_coordinator,
+        coordinator=mock_storage_coordinator,
         server_uuid="test-uuid",
         server_name="tower",
     )
@@ -1688,12 +1703,12 @@ def test_disks_disabled_is_off_when_count_zero(mock_infra_coordinator):
     assert sensor.is_on is False
 
 
-def test_disks_disabled_none_data(mock_infra_coordinator):
+def test_disks_disabled_none_data(mock_storage_coordinator):
     """Test is_on returns None when coordinator data is None."""
-    mock_infra_coordinator.data = None
+    mock_storage_coordinator.data = None
 
     sensor = DisksDisabledBinarySensor(
-        coordinator=mock_infra_coordinator,
+        coordinator=mock_storage_coordinator,
         server_uuid="test-uuid",
         server_name="tower",
     )
@@ -1702,25 +1717,31 @@ def test_disks_disabled_none_data(mock_infra_coordinator):
     assert sensor.extra_state_attributes == {}
 
 
-def test_disks_disabled_none_count(mock_infra_coordinator):
-    """Test is_on returns None when md_num_disabled is None."""
-    mock_infra_coordinator.data = make_infra_data(vars_data=Vars(md_num_disabled=None))
+def test_disks_disabled_ignores_unknown_status(mock_storage_coordinator):
+    """Test unknown statuses do not count as disabled."""
+    mock_storage_coordinator.data = make_storage_data(disks=[make_disk(status=None)])
 
     sensor = DisksDisabledBinarySensor(
-        coordinator=mock_infra_coordinator,
+        coordinator=mock_storage_coordinator,
         server_uuid="test-uuid",
         server_name="tower",
     )
 
-    assert sensor.is_on is None
+    assert sensor.is_on is False
 
 
-def test_disks_disabled_attributes(mock_infra_coordinator):
+def test_disks_disabled_attributes(mock_storage_coordinator):
     """Test extra_state_attributes includes count."""
-    mock_infra_coordinator.data = make_infra_data(vars_data=Vars(md_num_disabled=3))
+    mock_storage_coordinator.data = make_storage_data(
+        disks=[
+            make_disk(status=DISK_STATUS_DISABLED),
+            make_disk(id="disk:2", idx=2, name="Disk 2", status=DISK_STATUS_NP_DSBL),
+            make_disk(id="disk:3", idx=3, name="Disk 3", status=DISK_STATUS_DISABLED),
+        ]
+    )
 
     sensor = DisksDisabledBinarySensor(
-        coordinator=mock_infra_coordinator,
+        coordinator=mock_storage_coordinator,
         server_uuid="test-uuid",
         server_name="tower",
     )
@@ -1733,12 +1754,14 @@ def test_disks_disabled_attributes(mock_infra_coordinator):
 # =============================================================================
 
 
-def test_disks_missing_is_on_when_count_gt_zero(mock_infra_coordinator):
-    """Test is_on returns True when missing disk count > 0."""
-    mock_infra_coordinator.data = make_infra_data(vars_data=Vars(md_num_missing=1))
+def test_disks_missing_is_on_when_count_gt_zero(mock_storage_coordinator):
+    """Test is_on returns True when one or more disks are missing."""
+    mock_storage_coordinator.data = make_storage_data(
+        disks=[make_disk(status=DISK_STATUS_NP_MISSING)]
+    )
 
     sensor = DisksMissingBinarySensor(
-        coordinator=mock_infra_coordinator,
+        coordinator=mock_storage_coordinator,
         server_uuid="test-uuid",
         server_name="tower",
     )
@@ -1747,12 +1770,12 @@ def test_disks_missing_is_on_when_count_gt_zero(mock_infra_coordinator):
     assert sensor.extra_state_attributes == {"count": 1}
 
 
-def test_disks_missing_is_off_when_count_zero(mock_infra_coordinator):
-    """Test is_on returns False when missing disk count is 0."""
-    mock_infra_coordinator.data = make_infra_data(vars_data=Vars(md_num_missing=0))
+def test_disks_missing_is_off_when_count_zero(mock_storage_coordinator):
+    """Test is_on returns False when no disks are missing."""
+    mock_storage_coordinator.data = make_storage_data(disks=[make_disk()])
 
     sensor = DisksMissingBinarySensor(
-        coordinator=mock_infra_coordinator,
+        coordinator=mock_storage_coordinator,
         server_uuid="test-uuid",
         server_name="tower",
     )
@@ -1760,12 +1783,12 @@ def test_disks_missing_is_off_when_count_zero(mock_infra_coordinator):
     assert sensor.is_on is False
 
 
-def test_disks_missing_none_data(mock_infra_coordinator):
+def test_disks_missing_none_data(mock_storage_coordinator):
     """Test is_on returns None when coordinator data is None."""
-    mock_infra_coordinator.data = None
+    mock_storage_coordinator.data = None
 
     sensor = DisksMissingBinarySensor(
-        coordinator=mock_infra_coordinator,
+        coordinator=mock_storage_coordinator,
         server_uuid="test-uuid",
         server_name="tower",
     )
@@ -1778,26 +1801,31 @@ def test_disks_missing_none_data(mock_infra_coordinator):
 # =============================================================================
 
 
-def test_disks_invalid_is_on_when_count_gt_zero(mock_infra_coordinator):
-    """Test is_on returns True when invalid disk count > 0."""
-    mock_infra_coordinator.data = make_infra_data(vars_data=Vars(md_num_invalid=1))
+def test_disks_invalid_is_on_when_count_gt_zero(mock_storage_coordinator):
+    """Test is_on returns True when one or more disks are invalid."""
+    mock_storage_coordinator.data = make_storage_data(
+        disks=[
+            make_disk(status=DISK_STATUS_WRONG),
+            make_disk(id="disk:2", idx=2, name="Disk 2", status=DISK_STATUS_NEW),
+        ]
+    )
 
     sensor = DisksInvalidBinarySensor(
-        coordinator=mock_infra_coordinator,
+        coordinator=mock_storage_coordinator,
         server_uuid="test-uuid",
         server_name="tower",
     )
 
     assert sensor.is_on is True
-    assert sensor.extra_state_attributes == {"count": 1}
+    assert sensor.extra_state_attributes == {"count": 2}
 
 
-def test_disks_invalid_is_off_when_count_zero(mock_infra_coordinator):
-    """Test is_on returns False when invalid disk count is 0."""
-    mock_infra_coordinator.data = make_infra_data(vars_data=Vars(md_num_invalid=0))
+def test_disks_invalid_is_off_when_count_zero(mock_storage_coordinator):
+    """Test is_on returns False when no disks are invalid."""
+    mock_storage_coordinator.data = make_storage_data(disks=[make_disk()])
 
     sensor = DisksInvalidBinarySensor(
-        coordinator=mock_infra_coordinator,
+        coordinator=mock_storage_coordinator,
         server_uuid="test-uuid",
         server_name="tower",
     )
@@ -1805,12 +1833,12 @@ def test_disks_invalid_is_off_when_count_zero(mock_infra_coordinator):
     assert sensor.is_on is False
 
 
-def test_disks_invalid_none_data(mock_infra_coordinator):
+def test_disks_invalid_none_data(mock_storage_coordinator):
     """Test is_on returns None when coordinator data is None."""
-    mock_infra_coordinator.data = None
+    mock_storage_coordinator.data = None
 
     sensor = DisksInvalidBinarySensor(
-        coordinator=mock_infra_coordinator,
+        coordinator=mock_storage_coordinator,
         server_uuid="test-uuid",
         server_name="tower",
     )
