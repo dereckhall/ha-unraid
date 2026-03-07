@@ -7,21 +7,77 @@ and this project adheres to [Calendar Versioning](https://calver.org/) (YYYY.MM.
 
 ## [Unreleased]
 
+## [2026.3.0] - 2026-03-01
+
+### Added
+
+- **Unraid Version Sensor**: Diagnostic sensor showing the Unraid OS version (e.g. "7.2.3") with API version and architecture in attributes ([#168](https://github.com/ruaan-deysel/ha-unraid/discussions/168))
+- **System Health Binary Sensors**: 7 binary sensors for monitoring array and system health
+  - Mover active: Indicates if the Unraid mover is currently running
+  - Disks disabled: Problem sensor — ON if any disks are disabled (with count attribute)
+  - Disks missing: Problem sensor — ON if any disks are missing (with count attribute)
+  - Disks invalid: Problem sensor — ON if any disks are invalid (with count attribute)
+  - Safe mode: Problem sensor — ON if server is in safe mode (plugins/Docker disabled)
+  - Config invalid: Problem sensor — ON if array configuration is invalid
+  - Filesystems unmountable: Problem sensor — ON if any filesystems cannot be mounted (with count attribute)
+- **Service Binary Sensors**: Per-service binary sensor (SMB, NFS, etc.) indicating if each service is online, with version and uptime attributes (disabled by default)
+- **Container Resource Sensors**: Per-container CPU, memory usage (bytes), and memory percentage sensors for detailed Docker monitoring (disabled by default)
+- **Container Update Available Binary Sensor**: Per-container binary sensor indicating if a Docker image update is available, with image and state attributes
+- **Parity Check Speed Sensor**: Current parity check/rebuild speed in MB/s with elapsed time, estimated time, and progress attributes (disabled by default)
+- **UPS Voltage & Health Sensors**: 3 additional UPS sensors (disabled by default)
+  - Input voltage (V)
+  - Output voltage (V)
+  - Battery health status (e.g. "Good", "Replace")
+- **VM Control Buttons**: Added 5 button entities per VM for fine control
+  - Force Stop: Immediately power off VM
+  - Reboot: Gracefully restart VM
+  - Pause: Suspend VM execution
+  - Resume: Resume paused VM
+  - Reset: Hard reset VM
+- **Notification Management**: Added 4 sensors and 2 buttons for notification tracking and management
+  - **Sensors**: Active notifications count, Unread info/warning/alert notifications, Archived notifications total
+  - **Buttons**: Archive all unread notifications, Delete all archived notifications
+- **Parity History Sensors**: Added 2 sensors for parity check tracking
+  - Last parity check date (timestamp of most recent check)
+  - Last parity check errors count (number of errors found)
+- **Registration/License Sensors**: Added 2 sensors for license monitoring
+  - License type (Basic, Plus, Pro, Trial) with expiration details in attributes
+  - License state (valid, expired, trial, etc.)
+- **Cloud/Remote Access Binary Sensors**: Added 2 binary sensors for connectivity status
+  - Cloud connected: Indicates if server is connected to Unraid's Cloud service
+  - Remote access: Indicates if myunraid.net remote access is active
+- **Installed Plugins Sensor**: Count of installed plugins with full plugin list (name, version) in attributes
+
+### Changed
+
+- **Updated unraid-api to v1.6.0**: New API features including typed vars access, container resource metrics, and UPS voltage/health data
+- **Infrastructure Coordinator**: Extended to fetch system variables (vars), registration, cloud, remote access, and plugins data
+- **Container Switch Attributes**: Added `image_id`, `auto_start`, `web_ui_url`, and `icon_url` to Docker container switch extra state attributes
+- **VM Switch Attributes**: Added `memory`, `vcpu`, `auto_start`, and `primary_gpu` to VM switch extra state attributes
+- **Entity Settings**: All new entities are disabled by default with appropriate entity categories (diagnostic/config) per HA guidelines
+
+### Fixed
+
+- **Container Update Entities Showing UNKNOWN**: Fixed all container update available binary sensors showing "unknown" state when the API returns `None` for `isUpdateAvailable` — now correctly treated as "no update available" (off)
+
 ## [2026.2.3] - 2026-02-07
 
 ### Changed
+
 - **Updated unraid-api to v1.5.0**: Improved SSL/TLS detection and port handling with better error messages for unreachable servers ([#159](https://github.com/ruaan-deysel/ha-unraid/issues/159), [#144](https://github.com/ruaan-deysel/ha-unraid/issues/144))
   - Fixed connection failures when using non-standard ports with HTTP-only servers
   - Simplified port configuration - now uses single port value; library handles HTTPS fallback automatically
   - Better error reporting when custom ports are unreachable (no silent fallback to port 443)
 
 ### Fixed
+
 - **SSL Detection for HTTP-Only Servers**: Fixed integration unable to connect to servers with SSL/TLS mode "No" (HTTP-only) when using custom ports ([#159](https://github.com/ruaan-deysel/ha-unraid/issues/159))
   - Root cause: Port configuration was preventing HTTP probe, causing library to assume HTTPS on non-standard port
   - Now correctly probes HTTP on configured port and follows redirects to discover SSL/TLS mode
 - **Connection Error Messages**: Improved error reporting for unreachable custom ports - now clearly indicates port unreachable instead of SSL errors
 
 ### Technical
+
 - Removed dummy port workaround from config flow and entry setup
 - Simplified connection testing logic (2 attempts instead of 3: with/without SSL verify)
 - Using library's `restart_container()` convenience method in Docker restart button
@@ -30,6 +86,7 @@ and this project adheres to [Calendar Versioning](https://calver.org/) (YYYY.MM.
 ## [2026.2.2] - 2026-02-03
 
 ### Changed
+
 - **Fixed Polling Intervals**: Polling intervals are now fixed per Home Assistant Core integration quality guidelines ([#156](https://github.com/ruaan-deysel/ha-unraid/issues/156))
   - System data (CPU, RAM, Docker, VMs): 30 seconds
   - Storage data (array, disks, SMART): 5 minutes
@@ -37,22 +94,25 @@ and this project adheres to [Calendar Versioning](https://calver.org/) (YYYY.MM.
 - **Removed INTEGRATION_VERSION constant**: Version is sourced from `manifest.json` (standard HA practice)
 
 ### Fixed
+
 - **HA Core Compliance**: Integration now follows appropriate-polling guidelines for HA Core compatibility
 
 ## [2026.2.1] - 2026-02-01
 
 ### Fixed
-- **Docker Container Restart Button**: Button entity to restart Docker containers directly from Home Assistant UI
 
+- **Docker Container Restart Button**: Button entity to restart Docker containers directly from Home Assistant UI
 
 ## [2026.2.0] - 2026-01-29
 
 ### Added
+
 - **RAM Used Sensor**: New sensor showing active memory consumption (memory used by running processes), matching Unraid's "System + Docker" display. Uses `total - available` calculation to exclude cached/buffered memory that can be reclaimed
 - **Sensor Entity Translations**: Added proper translation keys for all sensor entities in `strings.json` and `translations/en.json`
 - **Docker Container Restart Button**: New button entity to restart Docker containers directly from Home Assistant UI
 
 ### Changed
+
 - **Uptime Sensor**: Renamed from "Uptime" to "Up since" to better describe the timestamp device class behavior. Removed diagnostic entity category to make it a regular sensor (aligns with core HA integration pattern)
 - **Control Switches**: Converted button pairs to switches for better UX:
   - **Array Switch**: Toggle array on/off (replaces separate start/stop buttons)
@@ -61,16 +121,19 @@ and this project adheres to [Calendar Versioning](https://calver.org/) (YYYY.MM.
 - **Disk Temperature Sensors**: Now disabled by default to reduce entity clutter. Users can enable per-disk temperature monitoring as needed
 
 ### Fixed
+
 - **RAM Used Calculation**: Fixed RAM Used sensor to show actual memory used by processes instead of raw "used" value which incorrectly included cached/buffered memory
 
 ## [2026.01.0] - 2026-01-13
 
 ### Added
+
 - **Custom Port Configuration**: Support for custom HTTP and HTTPS ports for users with reverse proxies or non-standard Unraid configurations ([#130](https://github.com/ruaan-deysel/ha-unraid/issues/130), [#131](https://github.com/ruaan-deysel/ha-unraid/issues/131))
   - Separate HTTP Port field (default: 80) - used for initial connection and redirect discovery
   - Separate HTTPS Port field (default: 443) - used for secure connections after redirect
 
 ### Fixed
+
 - **VM Detection**: Fixed VMs not being detected due to incorrect GraphQL field name (`domains` → `domain`)
 - **Log Spam Reduction**: Changed "Some optional features unavailable" messages from INFO to DEBUG level to prevent flooding logs when UPS, VMs, or Docker are not configured
 - **Entity Rename Stability**: Fixed Docker container and VM switches reverting to default names after container/VM updates ([#133](https://github.com/ruaan-deysel/ha-unraid/issues/133))
@@ -83,6 +146,7 @@ and this project adheres to [Calendar Versioning](https://calver.org/) (YYYY.MM.
 ## [2025.12.2] - 2025-12-30
 
 ### Fixed
+
 - **SSL/TLS Mode Detection**: Fixed connection issues when Unraid SSL/TLS setting is configured as "No" (HTTP-only) or "Yes" (self-signed certificate). Previously only "Strict" mode with myunraid.net URLs was properly detected. ([#124](https://github.com/ruaan-deysel/ha-unraid/issues/124))
 - **HTTP-Only Mode Support**: Integration now correctly detects and uses HTTP when Unraid's SSL/TLS is set to "No", connecting directly to `http://server-ip/graphql`
 - **Self-Signed Certificate Support**: When Unraid's SSL/TLS is set to "Yes", the integration now automatically retries with SSL verification disabled after detecting self-signed certificate errors
@@ -92,6 +156,7 @@ and this project adheres to [Calendar Versioning](https://calver.org/) (YYYY.MM.
 - **Docker Query Failure**: Fixed integration failing when Docker is not enabled on the Unraid server. Docker data is now queried separately, so users without Docker enabled will no longer see errors.
 
 ### Changed
+
 - Improved redirect URL discovery to handle all three Unraid SSL/TLS modes:
   - **No**: HTTP-only mode (no redirect)
   - **Yes**: HTTPS with self-signed certificate (302 redirect to HTTPS)
@@ -105,17 +170,20 @@ and this project adheres to [Calendar Versioning](https://calver.org/) (YYYY.MM.
 > ⚠️ **SSH to GraphQL Transition**: Release **2025.06.11** is the **last stable SSH-based** version of this integration. Starting with 2025.12.0, this integration uses Unraid's official GraphQL API exclusively. **There is no direct migration path** - you must remove the old integration and configure fresh with a new Unraid API key. Users preferring SSH can continue using [release 2025.06.11](https://github.com/ruaan-deysel/ha-unraid/releases/tag/v2025.06.11).
 
 ### Changed
+
 - Updated `iot_class` to `local_polling` (communicates with local Unraid servers, not cloud)
 - Added Claude Code CLI to devcontainer for development
 - Improved GraphQL error logging - errors now shown at WARNING level for easier diagnostics
 
 ### Fixed
+
 - Security: URL validation now uses proper hostname parsing instead of substring matching
 - Type safety improvements in API client
 
 ## [2025.12.0] - 2025-12-27
 
 ### Added
+
 - Initial release with GraphQL API support for Unraid 7.2.0+
 - **System Monitoring**
   - CPU usage, temperature, and power sensors
@@ -170,12 +238,15 @@ and this project adheres to [Calendar Versioning](https://calver.org/) (YYYY.MM.
   - Forward compatibility with unknown fields
 
 ### Technical Details
+
 - Requires Home Assistant 2024.12.0+
 - Requires Unraid 7.2.0+ (GraphQL API v4.21.0+)
 - HTTPS required for API communication
 - API key authentication via `x-api-key` header
 
-[Unreleased]: https://github.com/ruaan-deysel/ha-unraid/compare/v2026.2.2...HEAD
+[Unreleased]: https://github.com/ruaan-deysel/ha-unraid/compare/v2026.3.0...HEAD
+[2026.3.0]: https://github.com/ruaan-deysel/ha-unraid/compare/v2026.2.3...v2026.3.0
+[2026.2.3]: https://github.com/ruaan-deysel/ha-unraid/compare/v2026.2.2...v2026.2.3
 [2026.2.2]: https://github.com/ruaan-deysel/ha-unraid/compare/v2026.2.1...v2026.2.2
 [2026.2.1]: https://github.com/ruaan-deysel/ha-unraid/compare/v2026.2.0...v2026.2.1
 [2026.2.0]: https://github.com/ruaan-deysel/ha-unraid/compare/v2026.01.0...v2026.2.0
