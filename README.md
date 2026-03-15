@@ -80,7 +80,7 @@ I encourage users to check out **[Unraid Management Agent integration](https://w
 ## Requirements
 
 - **Home Assistant**: 2025.12.0 or later
-- **Unraid Server**: 7.2.0 or later (GraphQL API v4.21.0+)
+- **Unraid Server**: 7.2.0 or later (GraphQL API v4.29.2+)
 - **Unraid API Key**: Generated in Unraid settings
 
 ### Manual Installation
