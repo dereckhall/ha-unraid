@@ -89,12 +89,8 @@ class UnraidStorageData:
 
     @property
     def boot(self) -> ArrayDisk | None:
-        """Return boot/flash device, falling back to bootDevices[0]."""
-        if self.array.boot is not None:
-            return self.array.boot
-        if self.array.bootDevices:
-            return self.array.bootDevices[0]
-        return None
+        """Return boot/flash device."""
+        return self.array.boot
 
     @property
     def disks(self) -> list[ArrayDisk]:
@@ -377,6 +373,69 @@ class UnraidStorageCoordinator(DataUpdateCoordinator[UnraidStorageData]):
         """Spin down a disk."""
         await self.api_client.spin_down_disk(disk_id)
 
+    async def _get_array_compat(self) -> UnraidArray:
+        """Get array data with a query compatible with older Unraid API versions.
+
+        The unraid-api 1.7.0 library's typed_get_array() includes
+        'bootDevices' which doesn't exist on Unraid API < 4.30. This
+        method uses a corrected query that works on all 7.2.x versions.
+        """
+        query_str = """
+            query {
+                array {
+                    state
+                    capacity {
+                        kilobytes { free used total }
+                    }
+                    parityCheckStatus {
+                        status
+                        progress
+                        running
+                        paused
+                        errors
+                        speed
+                    }
+                    boot {
+                        id name device size temp type
+                        fsSize fsUsed fsFree fsType
+                    }
+                    parities {
+                        id idx name device size status type temp
+                        isSpinning rotational numReads numWrites numErrors
+                        warning critical color format transport comment exportable
+                    }
+                    disks {
+                        id idx name device size status type temp
+                        fsSize fsFree fsUsed fsType
+                        isSpinning rotational numReads numWrites numErrors
+                        warning critical color format transport comment exportable
+                    }
+                    caches {
+                        id idx name device size status type temp
+                        fsSize fsFree fsUsed fsType
+                        isSpinning rotational numReads numWrites numErrors
+                        warning critical color format transport comment exportable
+                    }
+                }
+            }
+        """
+        result = await self.api_client.query(query_str)
+        array_data = result.get("array", {}) or {}
+
+        boot_data = array_data.get("boot")
+        boot = ArrayDisk(**boot_data) if boot_data else None
+
+        return UnraidArray(
+            state=array_data.get("state"),
+            capacity=array_data.get("capacity", {}),
+            parityCheckStatus=array_data.get("parityCheckStatus", {}),
+            boot=boot,
+            bootDevices=[],
+            parities=[ArrayDisk(**d) for d in (array_data.get("parities") or [])],
+            disks=[ArrayDisk(**d) for d in (array_data.get("disks") or [])],
+            caches=[ArrayDisk(**d) for d in (array_data.get("caches") or [])],
+        )
+
     async def _async_update_data(self) -> UnraidStorageData:
         """
         Fetch storage data from Unraid server using library typed methods.
@@ -389,9 +448,9 @@ class UnraidStorageCoordinator(DataUpdateCoordinator[UnraidStorageData]):
 
         """
         try:
-            # Get array data using typed library method
-            # The library handles the GraphQL query internally
-            array = await self.api_client.typed_get_array()
+            # Use compatibility wrapper to avoid bootDevices field issue
+            # in unraid-api 1.7.0 (GitHub issue #196)
+            array = await self._get_array_compat()
 
             # Query shares separately (gracefully handles failure)
             shares = await self._query_optional_shares()
