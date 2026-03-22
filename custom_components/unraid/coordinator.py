@@ -36,7 +36,9 @@ from unraid_api.models import (
     RemoteAccess,
     Service,
     Share,
+    UPSBattery,
     UPSDevice,
+    UPSPower,
     Vars,
     VmDomain,
 )
@@ -159,10 +161,46 @@ class UnraidSystemCoordinator(DataUpdateCoordinator[UnraidSystemData]):
             _LOGGER.debug("VM data not available: %s", err)
             return []
 
+    async def _get_ups_compat(self) -> list[UPSDevice]:
+        """Get UPS data with a query compatible with older Unraid API versions.
+
+        The unraid-api library's typed_get_ups_devices() queries for
+        nominalPower and currentPower on UPSPower, but these fields don't
+        exist on Unraid API < 4.30. This method uses a corrected query
+        that works on all 7.2.x versions.
+        """
+        query_str = """
+            query {
+                upsDevices {
+                    id
+                    name
+                    model
+                    status
+                    battery { chargeLevel estimatedRuntime health }
+                    power { inputVoltage outputVoltage loadPercentage }
+                }
+            }
+        """
+        result = await self.api_client.query(query_str)
+        devices = result.get("upsDevices", []) or []
+        return [
+            UPSDevice(
+                id=d["id"],
+                name=d["name"],
+                model=d.get("model"),
+                status=d.get("status"),
+                battery=UPSBattery(**(d.get("battery") or {})),
+                power=UPSPower(**(d.get("power") or {})),
+            )
+            for d in devices
+        ]
+
     async def _query_optional_ups(self) -> list[UPSDevice]:
         """Query UPS devices (fails gracefully if no UPS configured)."""
         try:
-            return await self.api_client.typed_get_ups_devices()
+            # Use compatibility wrapper to avoid nominalPower/currentPower
+            # fields that don't exist on Unraid API < 4.30
+            return await self._get_ups_compat()
         except UnraidAuthenticationError:
             raise
         except (UnraidAPIError, UnraidConnectionError, UnraidTimeoutError) as err:
