@@ -505,6 +505,26 @@ async def test_coordinator_api_error_handling(hass, mock_api_client, mock_config
 
 
 @pytest.mark.asyncio
+async def test_system_coordinator_handles_runtime_error(
+    hass, mock_api_client, mock_config_entry
+):
+    """Test that RuntimeError (closed session) is treated as connection error."""
+    mock_api_client.get_server_info = AsyncMock(
+        side_effect=RuntimeError("Session is closed")
+    )
+
+    coordinator = UnraidSystemCoordinator(
+        hass=hass,
+        api_client=mock_api_client,
+        server_name="test",
+        config_entry=mock_config_entry,
+    )
+
+    with pytest.raises(UpdateFailed, match="Connection error"):
+        await coordinator._async_update_data()
+
+
+@pytest.mark.asyncio
 async def test_system_coordinator_http_error_handling(
     hass, mock_api_client, mock_config_entry
 ):
@@ -866,6 +886,26 @@ async def test_storage_coordinator_api_error_handling(
 
 
 @pytest.mark.asyncio
+async def test_storage_coordinator_handles_runtime_error(
+    hass, mock_api_client, mock_config_entry
+):
+    """Test that RuntimeError (closed session) is treated as connection error."""
+    mock_api_client.typed_get_array = AsyncMock(
+        side_effect=RuntimeError("Session is closed")
+    )
+
+    coordinator = UnraidStorageCoordinator(
+        hass=hass,
+        api_client=mock_api_client,
+        server_name="test",
+        config_entry=mock_config_entry,
+    )
+
+    with pytest.raises(UpdateFailed, match="Connection error"):
+        await coordinator._async_update_data()
+
+
+@pytest.mark.asyncio
 async def test_storage_coordinator_handles_shares_query_failure(
     hass, mock_api_client, mock_config_entry
 ):
@@ -1084,6 +1124,26 @@ async def test_infra_coordinator_connection_recovery(
     data = await coordinator._async_update_data()
     assert data is not None
     assert coordinator._previously_unavailable is False
+
+
+@pytest.mark.asyncio
+async def test_infra_coordinator_handles_runtime_error(
+    hass, mock_api_client, mock_config_entry
+):
+    """Test that RuntimeError (closed session) is treated as connection error."""
+    mock_api_client.typed_get_services = AsyncMock(
+        side_effect=RuntimeError("Session is closed")
+    )
+
+    coordinator = UnraidInfraCoordinator(
+        hass=hass,
+        api_client=mock_api_client,
+        server_name="test",
+        config_entry=mock_config_entry,
+    )
+
+    with pytest.raises(UpdateFailed, match="Connection error"):
+        await coordinator._async_update_data()
 
 
 # =============================================================================

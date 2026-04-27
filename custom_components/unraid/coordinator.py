@@ -412,6 +412,11 @@ class UnraidSystemCoordinator(DataUpdateCoordinator[UnraidSystemData]):
             msg = f"API error: {err}"
             _LOGGER.exception("System data update failed: %s", msg)
             raise UpdateFailed(msg) from err
+        except RuntimeError as err:
+            self._previously_unavailable = True
+            msg = f"Connection error: {err}"
+            _LOGGER.debug("System data update failed (session closed): %s", msg)
+            raise UpdateFailed(msg) from err
 
 
 class UnraidStorageCoordinator(DataUpdateCoordinator[UnraidStorageData]):
@@ -612,6 +617,9 @@ class UnraidStorageCoordinator(DataUpdateCoordinator[UnraidStorageData]):
         except UnraidAPIError as err:
             self._previously_unavailable = True
             raise UpdateFailed(f"API error: {err}") from err
+        except RuntimeError as err:
+            self._previously_unavailable = True
+            raise UpdateFailed(f"Connection error: {err}") from err
 
 
 @dataclass
@@ -790,3 +798,6 @@ class UnraidInfraCoordinator(DataUpdateCoordinator[UnraidInfraData]):
         except UnraidAPIError as err:
             self._previously_unavailable = True
             raise UpdateFailed(f"API error: {err}") from err
+        except RuntimeError as err:
+            self._previously_unavailable = True
+            raise UpdateFailed(f"Connection error: {err}") from err
