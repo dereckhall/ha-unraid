@@ -88,9 +88,6 @@
       "share_usage": {
         "default": "mdi:folder-network"
       },
-      "flash_usage": {
-        "default": "mdi:usb-flash-drive"
-      },
       "unraid_version": {
         "default": "mdi:server"
       },

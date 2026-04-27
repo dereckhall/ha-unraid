@@ -1903,54 +1903,6 @@ class ShareUsageSensor(UnraidSensorEntity):
         return attrs
 
 
-# Flash Device Sensor
-
-
-class FlashUsageSensor(UnraidSensorEntity):
-    """Flash/boot device usage percentage sensor with human-readable attributes."""
-
-    _attr_translation_key = "flash_usage"
-    _attr_native_unit_of_measurement = "%"
-    _attr_state_class = SensorStateClass.MEASUREMENT
-    _attr_suggested_display_precision = 1
-
-    def __init__(
-        self,
-        coordinator: UnraidStorageCoordinator,
-        server_uuid: str,
-        server_name: str,
-    ) -> None:
-        """Initialize flash usage sensor."""
-        super().__init__(
-            coordinator=coordinator,
-            server_uuid=server_uuid,
-            server_name=server_name,
-            resource_id="flash_usage",
-            name="Flash Device Usage",
-        )
-
-    @property
-    def native_value(self) -> float | None:
-        """Return flash device usage percentage."""
-        data: UnraidStorageData | None = self.coordinator.data
-        if data is None or data.boot is None:
-            return None
-        return data.boot.usage_percent
-
-    @property
-    def extra_state_attributes(self) -> dict[str, Any]:
-        """Return flash details as human-readable attributes."""
-        data: UnraidStorageData | None = self.coordinator.data
-        if data is None or data.boot is None:
-            return {}
-        boot = data.boot
-        return {
-            "total": format_bytes(boot.fs_size_bytes),
-            "used": format_bytes(boot.fs_used_bytes),
-            "free": format_bytes(boot.fs_free_bytes),
-            "device": boot.device,
-            "status": boot.status,
-        }
 
 
 # =============================================================================
@@ -2538,10 +2490,6 @@ def _create_disk_sensors(
         entities.append(
             ShareUsageSensor(storage_coordinator, server_uuid, server_name, share)
         )
-
-    # Flash device sensor (if boot device exists)
-    if data.boot:
-        entities.append(FlashUsageSensor(storage_coordinator, server_uuid, server_name))
 
     return entities
 

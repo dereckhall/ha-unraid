@@ -226,9 +226,6 @@
       "share_usage": {
         "name": "Share {name} usage"
       },
-      "flash_usage": {
-        "name": "Flash usage"
-      },
       "ups_battery": {
         "name": "UPS {name} battery"
       },

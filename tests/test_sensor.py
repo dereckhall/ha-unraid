@@ -42,7 +42,6 @@ from custom_components.unraid.sensor import (
     DiskErrorCountSensor,
     DiskTemperatureSensor,
     DiskUsageSensor,
-    FlashUsageSensor,
     InstalledPluginsSensor,
     LastParityCheckDateSensor,
     LastParityCheckErrorsSensor,
@@ -3524,98 +3523,6 @@ def test_shareusagesensor_attributes() -> None:
 # =============================================================================
 
 
-def test_flashusagesensor_creation() -> None:
-    """Test flash usage sensor creation."""
-    boot = ArrayDisk(
-        id="boot", name="Flash", fsSize=16000000, fsUsed=8000000, fsFree=8000000
-    )
-    coordinator = MagicMock(spec=UnraidStorageCoordinator)
-    coordinator.data = make_storage_data(boot=boot)
-
-    sensor = FlashUsageSensor(
-        coordinator=coordinator,
-        server_uuid="test-uuid",
-        server_name="test-server",
-    )
-
-    assert sensor.unique_id == "test-uuid_flash_usage"
-    assert sensor._attr_translation_key == "flash_usage"
-    assert sensor.state_class == SensorStateClass.MEASUREMENT
-    assert sensor.native_unit_of_measurement == "%"
-
-
-def test_flashusagesensor_state() -> None:
-    """Test flash usage sensor returns correct percentage."""
-    boot = ArrayDisk(id="boot", name="Flash", fsSize=16000, fsUsed=8000, fsFree=8000)
-    coordinator = MagicMock(spec=UnraidStorageCoordinator)
-    coordinator.data = make_storage_data(boot=boot)
-
-    sensor = FlashUsageSensor(
-        coordinator=coordinator,
-        server_uuid="test-uuid",
-        server_name="test-server",
-    )
-
-    assert sensor.native_value == 50.0
-
-
-def test_flashusagesensor_none_data() -> None:
-    """Test flash usage sensor returns None when coordinator data is None."""
-    coordinator = MagicMock(spec=UnraidStorageCoordinator)
-    coordinator.data = None
-
-    sensor = FlashUsageSensor(
-        coordinator=coordinator,
-        server_uuid="test-uuid",
-        server_name="test-server",
-    )
-
-    assert sensor.native_value is None
-
-
-def test_flashusagesensor_none_boot() -> None:
-    """Test flash usage sensor returns None when boot is None."""
-    coordinator = MagicMock(spec=UnraidStorageCoordinator)
-    coordinator.data = make_storage_data(boot=None)
-
-    sensor = FlashUsageSensor(
-        coordinator=coordinator,
-        server_uuid="test-uuid",
-        server_name="test-server",
-    )
-
-    assert sensor.native_value is None
-    assert sensor.extra_state_attributes == {}
-
-
-def test_flashusagesensor_attributes() -> None:
-    """Test flash usage sensor returns correct attributes."""
-    boot = ArrayDisk(
-        id="boot",
-        name="Flash",
-        device="sdc",
-        status="DISK_OK",
-        fsSize=16000000,
-        fsUsed=8000000,
-        fsFree=8000000,
-    )
-    coordinator = MagicMock(spec=UnraidStorageCoordinator)
-    coordinator.data = make_storage_data(boot=boot)
-
-    sensor = FlashUsageSensor(
-        coordinator=coordinator,
-        server_uuid="test-uuid",
-        server_name="test-server",
-    )
-
-    attrs = sensor.extra_state_attributes
-    assert "total" in attrs
-    assert "used" in attrs
-    assert "free" in attrs
-    assert attrs["device"] == "sdc"
-    assert attrs["status"] == "DISK_OK"
-
-
 # =============================================================================
 # async_setup_entry Tests
 # =============================================================================
@@ -3859,7 +3766,7 @@ async def test_asyncsetupentry_creates_flash_sensor(hass) -> None:
     await async_setup_entry(hass, mock_entry, mock_add_entities)
 
     entity_types = {type(e).__name__ for e in added_entities}
-    assert "FlashUsageSensor" in entity_types
+    assert "FlashUsageSensor" not in entity_types
 
 
 @pytest.mark.asyncio
