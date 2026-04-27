@@ -173,7 +173,6 @@ coverage.xml
 
 # Artifact files from terminal mistakes
 =*
-*.model_fields)"
 
 # Home Assistant configuration
 config/*
