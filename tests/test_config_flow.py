@@ -19,7 +19,6 @@ from unraid_api.exceptions import (
     UnraidConnectionError,
     UnraidSSLError,
     UnraidTimeoutError,
-    UnraidVersionError,
 )
 from unraid_api.models import ServerInfo, UPSDevice, VersionInfo
 
@@ -51,9 +50,6 @@ def mock_api_client() -> MagicMock:
     mock_api = MagicMock()
     mock_api.test_connection = AsyncMock(return_value=True)
     mock_api.get_version = AsyncMock(
-        return_value=VersionInfo(api="4.29.2", unraid="7.2.0")
-    )
-    mock_api.check_compatibility = AsyncMock(
         return_value=VersionInfo(api="4.29.2", unraid="7.2.0")
     )
     mock_api.get_server_info = AsyncMock(
@@ -336,11 +332,16 @@ async def test_aiohttp_client_connector_error(hass: HomeAssistant) -> None:
 
 
 async def test_unsupported_version_error(hass: HomeAssistant) -> None:
-    """Test old Unraid version shows version error."""
+    """Test old API version shows version error."""
     mock_api = AsyncMock()
     mock_api.test_connection = AsyncMock(return_value=True)
-    mock_api.check_compatibility = AsyncMock(
-        side_effect=UnraidVersionError("Unraid 6.9.0 (API 4.10.0) not supported")
+    mock_api.get_server_info = AsyncMock(
+        return_value=ServerInfo(
+            uuid="test-uuid",
+            hostname="tower",
+            sw_version="6.9.0",
+            api_version="4.10.0",
+        )
     )
     mock_api.close = AsyncMock()
 
@@ -663,9 +664,6 @@ async def test_ssl_error_retries_with_verify_disabled(
         else:
             mock_api.test_connection = AsyncMock(return_value=True)
             mock_api.get_version = AsyncMock(
-                return_value=VersionInfo(api="4.29.2", unraid="7.2.0")
-            )
-            mock_api.check_compatibility = AsyncMock(
                 return_value=VersionInfo(api="4.29.2", unraid="7.2.0")
             )
             mock_api.get_server_info = AsyncMock(
@@ -1061,9 +1059,14 @@ async def test_reauth_flow_unsupported_version_error(
     )
 
     mock_api = AsyncMock()
-    mock_api.test_connection = AsyncMock()
-    mock_api.check_compatibility = AsyncMock(
-        side_effect=UnraidVersionError("Unraid 6.0.0 (API 0.0.1) not supported")
+    mock_api.test_connection = AsyncMock(return_value=True)
+    mock_api.get_server_info = AsyncMock(
+        return_value=ServerInfo(
+            uuid="test-uuid",
+            hostname="tower",
+            sw_version="6.0.0",
+            api_version="0.0.1",
+        )
     )
     mock_api.close = AsyncMock()
 
@@ -1547,9 +1550,14 @@ async def test_reconfigure_flow_unsupported_version_error(
     )
 
     mock_api = AsyncMock()
-    mock_api.test_connection = AsyncMock()
-    mock_api.check_compatibility = AsyncMock(
-        side_effect=UnraidVersionError("Unraid 6.0.0 (API 0.0.1) not supported")
+    mock_api.test_connection = AsyncMock(return_value=True)
+    mock_api.get_server_info = AsyncMock(
+        return_value=ServerInfo(
+            uuid="test-uuid",
+            hostname="tower",
+            sw_version="6.0.0",
+            api_version="0.0.1",
+        )
     )
     mock_api.close = AsyncMock()
 
@@ -1953,8 +1961,13 @@ async def test_version_parsing_failure_rejected(
     """Test that malformed version strings result in connection rejection."""
     mock_api = AsyncMock()
     mock_api.test_connection = AsyncMock(return_value=True)
-    mock_api.check_compatibility = AsyncMock(
-        side_effect=UnraidVersionError("Version parsing failed: invalid-version")
+    mock_api.get_server_info = AsyncMock(
+        return_value=ServerInfo(
+            uuid="test-uuid",
+            hostname="tower",
+            sw_version="7.2.0",
+            api_version="invalid-version",
+        )
     )
     mock_api.close = AsyncMock()
 

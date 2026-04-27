@@ -7,6 +7,7 @@ from typing import TYPE_CHECKING, Any
 
 import aiohttp
 import voluptuous as vol
+from awesomeversion import AwesomeVersion
 from homeassistant import config_entries
 from homeassistant.config_entries import OptionsFlowWithReload
 from homeassistant.const import CONF_API_KEY, CONF_HOST, CONF_PORT, CONF_SSL
@@ -19,7 +20,6 @@ from unraid_api.exceptions import (
     UnraidConnectionError,
     UnraidSSLError,
     UnraidTimeoutError,
-    UnraidVersionError,
 )
 
 from .const import (
@@ -41,6 +41,7 @@ _LOGGER = logging.getLogger(__name__)
 MAX_HOSTNAME_LEN = 253
 MIN_PORT = 1
 MAX_PORT = 65535
+MIN_API_VERSION = "4.21.0"
 
 
 class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
@@ -243,18 +244,11 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             # Test connection
             await api_client.test_connection()
 
-            # Check version compatibility using library method
-            # Raises UnraidVersionError if server version is below minimum
-            await api_client.check_compatibility()
-
             # Get server UUID and hostname for unique identification
             await self._fetch_server_info(api_client, host)
 
         except (InvalidAuthError, CannotConnectError, UnsupportedVersionError):
             raise
-        except UnraidVersionError as err:
-            msg = str(err)
-            raise UnsupportedVersionError(msg) from err
         except UnraidAuthenticationError as err:
             msg = "Invalid API key or insufficient permissions"
             raise InvalidAuthError(msg) from err
@@ -288,6 +282,16 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         """
         # Use library's typed get_server_info() method
         server_info = await api_client.get_server_info()
+
+        api_version = server_info.api_version
+        if not api_version or AwesomeVersion(api_version) < AwesomeVersion(
+            MIN_API_VERSION
+        ):
+            msg = (
+                f"API version {api_version or 'unknown'} is below minimum "
+                f"required version {MIN_API_VERSION}"
+            )
+            raise UnsupportedVersionError(msg)
 
         uuid = server_info.uuid
         hostname = server_info.hostname or host

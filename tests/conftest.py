@@ -310,11 +310,6 @@ def create_mock_unraid_client(
         return_value=VersionInfo(api=_api_ver, unraid=_unraid_ver)
     )
 
-    # Compatibility check (returns VersionInfo model)
-    client.check_compatibility = AsyncMock(
-        return_value=VersionInfo(api=_api_ver, unraid=_unraid_ver)
-    )
-
     # System metrics (returns SystemMetrics model)
     default_metrics = SystemMetrics(
         cpu_percent=25.5,

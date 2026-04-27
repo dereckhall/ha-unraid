@@ -44,7 +44,7 @@
     "error": {
       "cannot_connect": "Cannot connect. Verify the host and port are correct and reachable.",
       "invalid_auth": "Invalid API key or insufficient permissions. Ensure the key has ADMIN role.",
-      "unsupported_version": "Unraid version not supported. Minimum required: Unraid 7.2.0 (API v4.21.0).",
+      "unsupported_version": "Unraid API version not supported. Minimum required: GraphQL API v4.21.0. Update via the Unraid Connect plugin.",
       "unknown": "Unexpected error occurred. Check Home Assistant logs for details.",
       "already_configured": "This Unraid server is already configured.",
       "required": "This field is required.",
