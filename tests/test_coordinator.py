@@ -170,6 +170,28 @@ def mock_api_client():
     client.get_notification_overview = AsyncMock(
         return_value=make_notification_overview()
     )
+    # Add query mock for compat queries (especially metrics)
+    client.query = AsyncMock(
+        return_value={
+            "metrics": {
+                "cpu": {"percentTotal": 25.5},
+                "memory": {
+                    "total": 17179869184,
+                    "used": 8589934592,
+                    "free": 8589934592,
+                    "available": 8589934592,
+                    "percentTotal": 50.0,
+                    "swapTotal": 4294967296,
+                    "swapUsed": 1073741824,
+                    "percentSwapTotal": 25.0,
+                },
+            },
+            "info": {
+                "os": {"uptime": 86400},
+                "cpu": {"packages": [{"temp": 55.0, "totalPower": None}]},
+            },
+        }
+    )
     client.typed_get_containers = AsyncMock(return_value=[])
     client.typed_get_vms = AsyncMock(return_value=[])
     client.typed_get_ups_devices = AsyncMock(return_value=[])
@@ -313,7 +335,7 @@ async def test_system_coordinator_fetch_success(
     assert data.info.uuid == "abc-123"
     assert data.metrics.cpu_percent == 25.5
     mock_api_client.get_server_info.assert_called_once()
-    mock_api_client.get_system_metrics.assert_called_once()
+    mock_api_client.query.assert_called()
 
 
 @pytest.mark.asyncio
@@ -328,7 +350,7 @@ async def test_system_coordinator_queries_all_endpoints(
 
     # Verify all library methods were called
     mock_api_client.get_server_info.assert_called_once()
-    mock_api_client.get_system_metrics.assert_called_once()
+    mock_api_client.query.assert_called()  # For metrics compat query
     mock_api_client.get_notification_overview.assert_called_once()
     mock_api_client.typed_get_containers.assert_called_once()
     mock_api_client.typed_get_vms.assert_called_once()
@@ -1080,10 +1102,26 @@ async def test_coordinator_data_refresh_cycle(hass, mock_api_client, mock_config
     data1 = await coordinator._async_update_data()
     assert data1 is not None
 
-    # Update mock to return different values
-    mock_api_client.get_system_metrics.return_value = make_system_metrics(
-        cpu_percent=75.0
-    )
+    # Update mock to return different values for metrics query
+    mock_api_client.query.return_value = {
+        "metrics": {
+            "cpu": {"percentTotal": 75.0},
+            "memory": {
+                "total": 17179869184,
+                "used": 8589934592,
+                "free": 8589934592,
+                "available": 8589934592,
+                "percentTotal": 50.0,
+                "swapTotal": 4294967296,
+                "swapUsed": 1073741824,
+                "percentSwapTotal": 25.0,
+            },
+        },
+        "info": {
+            "os": {"uptime": 86400},
+            "cpu": {"packages": [{"temp": 55.0, "totalPower": None}]},
+        },
+    }
 
     # Second refresh
     data2 = await coordinator._async_update_data()

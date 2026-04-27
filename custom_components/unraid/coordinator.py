@@ -364,11 +364,7 @@ class UnraidSystemCoordinator(DataUpdateCoordinator[UnraidSystemData]):
                 self._get_server_info_compat,
                 "get_server_info",
             )
-            metrics = await _try_with_compat_fallback(
-                self.api_client.get_system_metrics,
-                self._get_system_metrics_compat,
-                "get_system_metrics",
-            )
+            metrics = await self._get_system_metrics_compat()
             notifications = await _try_with_compat_fallback(
                 self.api_client.get_notification_overview,
                 self._get_notifications_compat,
