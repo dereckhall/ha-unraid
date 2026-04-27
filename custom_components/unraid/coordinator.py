@@ -3,8 +3,10 @@
 from __future__ import annotations
 
 import logging
+from collections.abc import Awaitable, Callable
 from dataclasses import dataclass, field
 from datetime import timedelta
+from typing import TypeVar
 
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
@@ -49,7 +51,79 @@ from .const import (
     SYSTEM_POLL_INTERVAL,
 )
 
+T = TypeVar("T")
+
+# Compat GraphQL queries that work on all Unraid API versions (including < 4.30).
+# These are used as automatic fallbacks when the unraid-api library's built-in
+# queries include fields that don't exist on older API versions (HTTP 400).
+
+_METRICS_COMPAT_QUERY = """
+    query {
+        metrics {
+            cpu { percentTotal }
+            memory {
+                total used free available
+                percentTotal
+                swapTotal swapUsed percentSwapTotal
+            }
+        }
+        info {
+            os { uptime }
+            cpu { packages { temp totalPower } }
+        }
+    }
+"""
+
+_SERVER_INFO_COMPAT_QUERY = """
+    query {
+        info {
+            system { uuid manufacturer model serial }
+            baseboard { manufacturer model serial }
+            os { hostname distro release kernel arch }
+            cpu { manufacturer brand cores threads }
+            versions { core { unraid api } }
+        }
+        server { lanip localurl remoteurl }
+        registration { type state }
+    }
+"""
+
+_NOTIFICATIONS_COMPAT_QUERY = """
+    query {
+        notifications {
+            overview {
+                unread { info warning alert total }
+                archive { info warning alert total }
+            }
+        }
+    }
+"""
+
 _LOGGER = logging.getLogger(__name__)
+
+
+async def _try_with_compat_fallback(
+    library_call: Callable[[], Awaitable[T]],
+    compat_call: Callable[[], Awaitable[T]],
+    label: str,
+) -> T:
+    """Try the library method first; on HTTP 400 (schema mismatch), fall back to a compat query.
+
+    This handles the case where the unraid-api library adds new GraphQL fields
+    that don't exist on older Unraid API versions. Instead of maintaining
+    per-method compat wrappers, every library call goes through this so future
+    library updates are handled automatically.
+    """
+    try:
+        return await library_call()
+    except UnraidAPIError as err:
+        if "400" in str(err):
+            _LOGGER.debug(
+                "%s: library query returned 400, falling back to compat query",
+                label,
+            )
+            return await compat_call()
+        raise
 
 
 @dataclass
@@ -256,6 +330,22 @@ class UnraidSystemCoordinator(DataUpdateCoordinator[UnraidSystemData]):
         """Delete all notifications."""
         await self.api_client.delete_all_notifications()
 
+    async def _get_server_info_compat(self) -> ServerInfo:
+        """Compat fallback for get_server_info."""
+        result = await self.api_client.query(_SERVER_INFO_COMPAT_QUERY)
+        return ServerInfo.from_response(result)
+
+    async def _get_system_metrics_compat(self) -> SystemMetrics:
+        """Compat fallback for get_system_metrics."""
+        result = await self.api_client.query(_METRICS_COMPAT_QUERY)
+        return SystemMetrics.from_response(result)
+
+    async def _get_notifications_compat(self) -> NotificationOverview:
+        """Compat fallback for get_notification_overview."""
+        result = await self.api_client.query(_NOTIFICATIONS_COMPAT_QUERY)
+        overview_data = result.get("notifications", {}).get("overview", {}) or {}
+        return NotificationOverview(**overview_data)
+
     async def _async_update_data(self) -> UnraidSystemData:
         """
         Fetch system data from Unraid server using library typed methods.
@@ -269,10 +359,21 @@ class UnraidSystemCoordinator(DataUpdateCoordinator[UnraidSystemData]):
         """
         _LOGGER.debug("Starting system data update")
         try:
-            # Query core system data (must succeed) using library typed methods
-            info = await self.api_client.get_server_info()
-            metrics = await self.api_client.get_system_metrics()
-            notifications = await self.api_client.get_notification_overview()
+            info = await _try_with_compat_fallback(
+                self.api_client.get_server_info,
+                self._get_server_info_compat,
+                "get_server_info",
+            )
+            metrics = await _try_with_compat_fallback(
+                self.api_client.get_system_metrics,
+                self._get_system_metrics_compat,
+                "get_system_metrics",
+            )
+            notifications = await _try_with_compat_fallback(
+                self.api_client.get_notification_overview,
+                self._get_notifications_compat,
+                "get_notification_overview",
+            )
 
             # Query optional services separately (fail gracefully if not enabled)
             containers = await self._query_optional_docker()
@@ -412,12 +513,7 @@ class UnraidStorageCoordinator(DataUpdateCoordinator[UnraidStorageData]):
         await self.api_client.spin_down_disk(disk_id)
 
     async def _get_array_compat(self) -> UnraidArray:
-        """Get array data with a query compatible with older Unraid API versions.
-
-        The unraid-api 1.7.0 library's typed_get_array() includes
-        'bootDevices' which doesn't exist on Unraid API < 4.30. This
-        method uses a corrected query that works on all 7.2.x versions.
-        """
+        """Compat fallback for typed_get_array — omits bootDevices and other newer fields."""
         query_str = """
             query {
                 array {
@@ -486,9 +582,11 @@ class UnraidStorageCoordinator(DataUpdateCoordinator[UnraidStorageData]):
 
         """
         try:
-            # Use compatibility wrapper to avoid bootDevices field issue
-            # in unraid-api 1.7.0 (GitHub issue #196)
-            array = await self._get_array_compat()
+            array = await _try_with_compat_fallback(
+                self.api_client.typed_get_array,
+                self._get_array_compat,
+                "typed_get_array",
+            )
 
             # Query shares separately (gracefully handles failure)
             shares = await self._query_optional_shares()

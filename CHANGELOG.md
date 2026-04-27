@@ -8,6 +8,14 @@ and this project adheres to [Calendar Versioning](https://calver.org/) (YYYY.MM.
 ## [Unreleased]
 
 No unreleased changes yet.
+
+## [2026.4.1] - 2026-04-26
+
+### Fixed
+
+- **Automatic fallback for incompatible library queries**: All core API calls (`get_system_metrics`, `get_server_info`, `get_notification_overview`, `typed_get_array`) now use a try-library-first, fallback-to-compat-query pattern. When the `unraid-api` library adds new GraphQL fields that don't exist on older Unraid API versions (< 4.30), the integration automatically falls back to known-good queries instead of failing with HTTP 400 errors. This makes the integration resilient to future `unraid-api` library updates without needing per-method fixes.
+- **Fixed `get_system_metrics` HTTP 400**: The `unraid-api` library v1.8.0+ added a `metrics.temperature` block to the system metrics query that doesn't exist on Unraid API < 4.30, causing both config entries to enter `setup_retry`. Now handled by the automatic fallback mechanism.
+
 ## [2026.3.1] - 2026-03-20
 
 ### Added
