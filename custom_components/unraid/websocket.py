@@ -20,7 +20,7 @@ from .const import WS_INITIAL_RETRY_DELAY, WS_MAX_RETRY_DELAY, WS_RETRY_BACKOFF_
 if TYPE_CHECKING:
     from unraid_api import UnraidClient
 
-    from .coordinator import UnraidStorageCoordinator, UnraidSystemCoordinator
+    from .coordinator import UnraidSystemCoordinator
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -45,13 +45,11 @@ class UnraidWebSocketManager:
         self,
         api_client: UnraidClient,
         system_coordinator: UnraidSystemCoordinator,
-        storage_coordinator: UnraidStorageCoordinator,
         server_name: str,
     ) -> None:
         """Initialize the WebSocket manager."""
         self._api_client = api_client
         self._system_coordinator = system_coordinator
-        self._storage_coordinator = storage_coordinator
         self._server_name = server_name
         self._tasks: list[asyncio.Task[None]] = []
         self._running = False
@@ -68,10 +66,6 @@ class UnraidWebSocketManager:
             asyncio.create_task(
                 self._run_subscription("container_stats", self._handle_container_stats),
                 name=f"unraid_ws_container_stats_{self._server_name}",
-            ),
-            asyncio.create_task(
-                self._run_subscription("array_updates", self._handle_array_updates),
-                name=f"unraid_ws_array_updates_{self._server_name}",
             ),
             asyncio.create_task(
                 self._run_subscription("ups_updates", self._handle_ups_updates),
@@ -167,19 +161,6 @@ class UnraidWebSocketManager:
                 self._system_coordinator.async_set_updated_data(
                     self._system_coordinator.data
                 )
-
-    async def _handle_array_updates(self) -> None:
-        """Process array state subscription and trigger storage refresh."""
-        async for update in self._api_client.subscribe_array_updates():
-            if not self._running:
-                break
-            _LOGGER.debug(
-                "Array update received for %s: state=%s",
-                self._server_name,
-                update.state,
-            )
-            # Trigger an immediate storage coordinator refresh to get full data
-            await self._storage_coordinator.async_request_refresh()
 
     async def _handle_ups_updates(self) -> None:
         """Process UPS state subscription and trigger system refresh."""

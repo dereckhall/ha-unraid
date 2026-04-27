@@ -27,7 +27,6 @@ def _make_manager(
     *,
     api_client: AsyncMock | None = None,
     system_coordinator: MagicMock | None = None,
-    storage_coordinator: MagicMock | None = None,
 ) -> UnraidWebSocketManager:
     """Create a WebSocket manager with mocked dependencies."""
     if api_client is None:
@@ -35,12 +34,9 @@ def _make_manager(
     if system_coordinator is None:
         system_coordinator = MagicMock()
         system_coordinator.data = MagicMock()
-    if storage_coordinator is None:
-        storage_coordinator = MagicMock()
     return UnraidWebSocketManager(
         api_client=api_client,
         system_coordinator=system_coordinator,
-        storage_coordinator=storage_coordinator,
         server_name="TestServer",
     )
 
@@ -109,12 +105,11 @@ class TestWebSocketManagerLifecycle:
         # Make subscriptions wait forever so tasks stay alive
         api = manager._api_client
         api.subscribe_container_stats = AsyncMock(side_effect=asyncio.CancelledError)
-        api.subscribe_array_updates = AsyncMock(side_effect=asyncio.CancelledError)
         api.subscribe_ups_updates = AsyncMock(side_effect=asyncio.CancelledError)
 
         await manager.async_start()
         assert manager._running is True
-        assert len(manager._tasks) == 3
+        assert len(manager._tasks) == 2
         # Clean up
         await manager.async_stop()
 
@@ -124,12 +119,11 @@ class TestWebSocketManagerLifecycle:
         manager = _make_manager()
         api = manager._api_client
         api.subscribe_container_stats = AsyncMock(side_effect=asyncio.CancelledError)
-        api.subscribe_array_updates = AsyncMock(side_effect=asyncio.CancelledError)
         api.subscribe_ups_updates = AsyncMock(side_effect=asyncio.CancelledError)
 
         await manager.async_start()
         await manager.async_start()  # Second call should be no-op
-        assert len(manager._tasks) == 3
+        assert len(manager._tasks) == 2
         await manager.async_stop()
 
     @pytest.mark.asyncio
@@ -138,7 +132,6 @@ class TestWebSocketManagerLifecycle:
         manager = _make_manager()
         api = manager._api_client
         api.subscribe_container_stats = AsyncMock(side_effect=asyncio.CancelledError)
-        api.subscribe_array_updates = AsyncMock(side_effect=asyncio.CancelledError)
         api.subscribe_ups_updates = AsyncMock(side_effect=asyncio.CancelledError)
 
         await manager.async_start()
@@ -253,37 +246,6 @@ class TestContainerStatsSubscription:
         await manager._handle_container_stats()
 
         system_coordinator.async_set_updated_data.assert_not_called()
-
-
-# =============================================================================
-# UnraidWebSocketManager — Array Updates Subscription Tests
-# =============================================================================
-
-
-class TestArrayUpdatesSubscription:
-    """Tests for array updates WebSocket subscription."""
-
-    @pytest.mark.asyncio
-    async def test_array_update_triggers_refresh(self) -> None:
-        """Test that array updates trigger storage coordinator refresh."""
-        update = MagicMock()
-        update.state = "STARTED"
-
-        async def mock_subscribe() -> Any:
-            yield update
-
-        storage_coordinator = AsyncMock()
-        api_client = AsyncMock()
-        api_client.subscribe_array_updates = mock_subscribe
-
-        manager = _make_manager(
-            api_client=api_client,
-            storage_coordinator=storage_coordinator,
-        )
-        manager._running = True
-        await manager._handle_array_updates()
-
-        storage_coordinator.async_request_refresh.assert_called_once()
 
 
 # =============================================================================
