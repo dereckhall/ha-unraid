@@ -321,6 +321,114 @@ async def test_container_turn_off_failure() -> None:
     assert exc_info.value.translation_key == "container_stop_failed"
 
 
+@pytest.mark.asyncio
+async def test_container_switch_304_already_running() -> None:
+    """Test container switch handles 304 error when already running."""
+    container = DockerContainer(
+        id="ct:1",
+        name="/web",
+        state="RUNNING",
+    )
+    coordinator = MagicMock(spec=UnraidSystemCoordinator)
+    coordinator.data = make_system_data(containers=[container])
+    coordinator.async_start_container = AsyncMock(
+        side_effect=UnraidAPIError("304: Container already started")
+    )
+    coordinator.async_request_refresh = AsyncMock()
+
+    switch = DockerContainerSwitch(
+        coordinator=coordinator,
+        server_uuid="test-uuid",
+        server_name="test-server",
+        container=container,
+    )
+
+    # Should not raise HomeAssistantError for 304
+    await switch.async_turn_on()
+    coordinator.async_start_container.assert_called_once_with("ct:1")
+    coordinator.async_request_refresh.assert_called_once()
+
+
+@pytest.mark.asyncio
+async def test_container_switch_real_error_raises() -> None:
+    """Test container switch raises HomeAssistantError for real errors."""
+    container = DockerContainer(
+        id="ct:1",
+        name="/web",
+        state="EXITED",
+    )
+    coordinator = MagicMock(spec=UnraidSystemCoordinator)
+    coordinator.data = make_system_data(containers=[container])
+    coordinator.async_start_container = AsyncMock(
+        side_effect=UnraidAPIError("500: Internal Server Error")
+    )
+    coordinator.async_request_refresh = AsyncMock()
+
+    switch = DockerContainerSwitch(
+        coordinator=coordinator,
+        server_uuid="test-uuid",
+        server_name="test-server",
+        container=container,
+    )
+
+    # Should raise HomeAssistantError for non-304 errors
+    with pytest.raises(HomeAssistantError) as exc_info:
+        await switch.async_turn_on()
+    assert exc_info.value.translation_key == "container_start_failed"
+    # Refresh should not be called when error is raised
+    coordinator.async_request_refresh.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_container_switch_refresh_after_turn_on() -> None:
+    """Test container switch refreshes after successful turn_on."""
+    container = DockerContainer(
+        id="ct:1",
+        name="/web",
+        state="EXITED",
+    )
+    coordinator = MagicMock(spec=UnraidSystemCoordinator)
+    coordinator.data = make_system_data(containers=[container])
+    coordinator.async_start_container = AsyncMock()
+    coordinator.async_request_refresh = AsyncMock()
+
+    switch = DockerContainerSwitch(
+        coordinator=coordinator,
+        server_uuid="test-uuid",
+        server_name="test-server",
+        container=container,
+    )
+
+    await switch.async_turn_on()
+    coordinator.async_start_container.assert_called_once_with("ct:1")
+    coordinator.async_request_refresh.assert_called_once()
+
+
+@pytest.mark.asyncio
+async def test_container_switch_refresh_after_turn_off() -> None:
+    """Test container switch refreshes after successful turn_off."""
+    container = DockerContainer(
+        id="ct:1",
+        name="/web",
+        state="RUNNING",
+    )
+    coordinator = MagicMock(spec=UnraidSystemCoordinator)
+    coordinator.data = make_system_data(containers=[container])
+    coordinator.async_stop_container = AsyncMock()
+    coordinator.async_request_refresh = AsyncMock()
+
+    switch = DockerContainerSwitch(
+        coordinator=coordinator,
+        server_uuid="test-uuid",
+        server_name="test-server",
+        container=container,
+    )
+
+    await switch.async_turn_off()
+    coordinator.async_stop_container.assert_called_once_with("ct:1")
+    coordinator.async_request_refresh.assert_called_once()
+
+
 # =============================================================================
 # VirtualMachineSwitch Tests
 # =============================================================================
@@ -607,6 +715,84 @@ async def test_vm_turn_off_failure() -> None:
     with pytest.raises(HomeAssistantError) as exc_info:
         await switch.async_turn_off()
     assert exc_info.value.translation_key == "vm_stop_failed"
+
+
+@pytest.mark.asyncio
+async def test_vm_switch_304_already_running() -> None:
+    """Test VM switch handles 304 error when already running."""
+    vm = VmDomain(
+        id="vm:1",
+        name="Ubuntu",
+        state="RUNNING",
+    )
+    coordinator = MagicMock(spec=UnraidSystemCoordinator)
+    coordinator.data = make_system_data(vms=[vm])
+    coordinator.async_start_vm = AsyncMock(
+        side_effect=UnraidAPIError("304: VM already started")
+    )
+    coordinator.async_request_refresh = AsyncMock()
+
+    switch = VirtualMachineSwitch(
+        coordinator=coordinator,
+        server_uuid="test-uuid",
+        server_name="test-server",
+        vm=vm,
+    )
+
+    # Should not raise HomeAssistantError for 304
+    await switch.async_turn_on()
+    coordinator.async_start_vm.assert_called_once_with("vm:1")
+    coordinator.async_request_refresh.assert_called_once()
+
+
+@pytest.mark.asyncio
+async def test_vm_switch_refresh_after_turn_on() -> None:
+    """Test VM switch refreshes after successful turn_on."""
+    vm = VmDomain(
+        id="vm:1",
+        name="Ubuntu",
+        state="SHUTOFF",
+    )
+    coordinator = MagicMock(spec=UnraidSystemCoordinator)
+    coordinator.data = make_system_data(vms=[vm])
+    coordinator.async_start_vm = AsyncMock()
+    coordinator.async_request_refresh = AsyncMock()
+
+    switch = VirtualMachineSwitch(
+        coordinator=coordinator,
+        server_uuid="test-uuid",
+        server_name="test-server",
+        vm=vm,
+    )
+
+    await switch.async_turn_on()
+    coordinator.async_start_vm.assert_called_once_with("vm:1")
+    coordinator.async_request_refresh.assert_called_once()
+
+
+@pytest.mark.asyncio
+async def test_vm_switch_refresh_after_turn_off() -> None:
+    """Test VM switch refreshes after successful turn_off."""
+    vm = VmDomain(
+        id="vm:1",
+        name="Ubuntu",
+        state="RUNNING",
+    )
+    coordinator = MagicMock(spec=UnraidSystemCoordinator)
+    coordinator.data = make_system_data(vms=[vm])
+    coordinator.async_stop_vm = AsyncMock()
+    coordinator.async_request_refresh = AsyncMock()
+
+    switch = VirtualMachineSwitch(
+        coordinator=coordinator,
+        server_uuid="test-uuid",
+        server_name="test-server",
+        vm=vm,
+    )
+
+    await switch.async_turn_off()
+    coordinator.async_stop_vm.assert_called_once_with("vm:1")
+    coordinator.async_request_refresh.assert_called_once()
 
 
 # =============================================================================
